@@ -461,14 +461,14 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
     def __init__(self, encoder_seg, decoder_seg, encoder_nmt, decoder_nmt):
         super().__init__()
 
-        self.encoder_seg = encoder_seg
+        self.encoder_shared = encoder_shared
         self.decoder_seg = decoder_seg
         self.encoder_nmt = encoder_nmt
         self.decoder_nmt = decoder_nmt
-        assert isinstance(self.encoder_seg, FairseqEncoder)
-        assert isinstance(self.decoder_seg, FairseqDecoder)
-        assert isinstance(self.encoder_nmt, FairseqEncoder)
-        assert isinstance(self.decoder_nmt, FairseqDecoder)
+        # assert isinstance(self.encoder_shared, FairseqEncoder)
+        # assert isinstance(self.decoder_seg, FairseqDecoder)
+        # assert isinstance(self.encoder_nmt, FairseqEncoder)
+        # assert isinstance(self.decoder_nmt, FairseqDecoder)
 
     def forward(self, src_tokens, src_lengths, seg_lengths, prev_output_tokens, prev_output_tokens_seg, **kwargs):
         """
@@ -499,7 +499,8 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
                 - the decoder's output of shape `(batch, tgt_len, vocab)`
                 - a dictionary with any model-specific outputs
         """
-        encoder_out_seg = self.encoder_seg(src_tokens, src_lengths=src_lengths, **kwargs)
+        #TODO: decoder_seg input need to be modified.
+        encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
         decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_seg, **kwargs)
         encoder_out_nmt = self.encoder_nmt(encoder_out_seg, src_lengths=seg_lengths, **kwargs)
         decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)

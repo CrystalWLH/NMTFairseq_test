@@ -51,8 +51,13 @@ class CtcNmtCriterion(FairseqCriterion):
         )
         return loss, loss
 
-    def compute_ctc_loss(self, model, net_output, sample, reduct=True):
-        pass
+    def compute_ctc_loss(self, model, ctc_output, sample, reduct=True):
+        ctc_loss = torch.nn.CTCLoss(blank=len(self.task.seg_dict), reduction='mean')
+        seg_target, _ = model.get_targets(sample, num_output).view(-1)
+        src_len = sample['net_input']['src_lengths']
+        seg_len = sample['net_input']['segmentation_lengths']
+        loss = ctc_loss(ctc_output, seg_target, src_len, seg_len)
+        return loss, loss
 
 
     @staticmethod
