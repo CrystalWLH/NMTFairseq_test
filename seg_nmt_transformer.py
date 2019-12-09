@@ -125,6 +125,8 @@ class Seg_NMT_TransformerModel(FairseqEncoderDecoderDoubleModel):
                             help='which layers to *keep* when pruning as a comma-separated list')
         parser.add_argument('--decoder-layers-to-keep', default=None,
                             help='which layers to *keep* when pruning as a comma-separated list')
+        #TODO: Add args for ctc segmentation model.
+        
         # fmt: on
 
     @classmethod

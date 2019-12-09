@@ -31,14 +31,14 @@ DEFAULT_MAX_SOURCE_POSITIONS = 1024
 DEFAULT_MAX_TARGET_POSITIONS = 1024
 
 
-@register_model('transformer')
+@register_model('seg_nmt_ctc')
 class SegNmtCTCModel(BaseFairseqModel):
     """
     seg_nmt model for training segmentation and NMT jointly.
 
     Args:
         shared_encoder(TransformerEncoder): seg and nmt shared encoder
-        seg_encoder (TransformerEncoder): the seg encoder for ctc
+        ctc_decoder (TransformerEncoder): the seg decoder for ctc
         nmt_encoder (TransformerEncoder): the nmt encoder
         nmt_decoder (TransformerDecoder): the nmt decoder
 
@@ -48,7 +48,7 @@ class SegNmtCTCModel(BaseFairseqModel):
     """
 
 
-    def __init__(self, shared_encoder, ctc_encoder, nmt_encoder, nmt_decoder):
+    def __init__(self, shared_encoder, ctc_decoder, nmt_encoder, nmt_decoder):
         super().__init__()
         self.shared_encoder = shared_encoder
         self.ctc_decoder = ctc_decoder
@@ -125,6 +125,7 @@ class SegNmtCTCModel(BaseFairseqModel):
                             help='which layers to *keep* when pruning as a comma-separated list')
         parser.add_argument('--decoder-layers-to-keep', default=None,
                             help='which layers to *keep* when pruning as a comma-separated list')
+        #TODO: Add args for ctc segmentation model.
         # fmt: on
 
     @classmethod
