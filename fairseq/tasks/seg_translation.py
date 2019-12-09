@@ -1,7 +1,8 @@
 '''
-    CTC + NMT task
+    Segmentation + NMT task
     Author: Lihui Wang
-    Date: 2019-11-27
+    Create Date: 2019-11-27
+    Update Date: 2019-12-09
 '''
 
 import itertools
@@ -23,28 +24,28 @@ from . import FairseqTask, register_task
 def load_langpair_dataset(
     data_path, split,
     src, src_dict,
-    ctc, ctc_dict,
+    seg, seg_dict,
     tgt, tgt_dict,
     combine, dataset_impl, upsample_primary,
-    left_pad_source, left_pad_ctc, left_pad_target, max_source_positions,
-    max_ctc_positions, max_target_positions, prepend_bos=False, load_alignments=False,
+    left_pad_source, left_pad_seg, left_pad_target, max_source_positions,
+    max_seg_positions, max_target_positions, prepend_bos=False, load_alignments=False,
 ):
-    def split_exists(split, src, ctc, tgt, lang, data_path):
-        filename = os.path.join(data_path, '{}.{}-{}-{}.{}'.format(split, src, ctc, tgt, lang))
+    def split_exists(split, src, seg, tgt, lang, data_path):
+        filename = os.path.join(data_path, '{}.{}-{}-{}.{}'.format(split, src, seg, tgt, lang))
         return indexed_dataset.dataset_exists(filename, impl=dataset_impl)
 
     src_datasets = []
-    ctc_datasets = []
+    seg_datasets = []
     tgt_datasets = []
 
     for k in itertools.count():
         split_k = split + (str(k) if k > 0 else '')
 
         # infer langcode
-        if split_exists(split_k, src, ctc, tgt, src, data_path):
-            prefix = os.path.join(data_path, '{}.{}-{}-{}.'.format(split_k, src, ctc, tgt))
-        elif split_exists(split_k, tgt, ctc, src, src, data_path):
-            prefix = os.path.join(data_path, '{}.{}-{}-{}.'.format(split_k, tgt, ctc, src))
+        if split_exists(split_k, src, seg, tgt, src, data_path):
+            prefix = os.path.join(data_path, '{}.{}-{}-{}.'.format(split_k, src, seg, tgt))
+        elif split_exists(split_k, tgt, seg, src, src, data_path):
+            prefix = os.path.join(data_path, '{}.{}-{}-{}.'.format(split_k, tgt, seg, src))
         else:
             if k > 0:
                 break
@@ -54,38 +55,38 @@ def load_langpair_dataset(
         src_datasets.append(
             data_utils.load_indexed_dataset(prefix + src, src_dict, dataset_impl)
         )
-        ctc_datasets.append(
-            data_utils.load_indexed_dataset(prefix + ctc, ctc_dict, dataset_impl)        
+        seg_datasets.append(
+            data_utils.load_indexed_dataset(prefix + seg, seg_dict, dataset_impl)        
         )
         tgt_datasets.append(
             data_utils.load_indexed_dataset(prefix + tgt, tgt_dict, dataset_impl)
         )
 
-        print('| {} {} {}-{}-{} {} examples'.format(data_path, split_k, src, ctc, tgt, len(src_datasets[-1])))
+        print('| {} {} {}-{}-{} {} examples'.format(data_path, split_k, src, seg, tgt, len(src_datasets[-1])))
 
         if not combine:
             break
 
-    assert len(src_datasets) == len(tgt_datasets), len(src_datasets)  == len(ctc_datasets)
+    assert len(src_datasets) == len(tgt_datasets), len(src_datasets)  == len(seg_datasets)
 
     if len(src_datasets) == 1:
-        src_dataset, ctc_dataset, tgt_dataset = src_datasets[0], ctc_datasets[0], tgt_datasets[0]
+        src_dataset, seg_dataset, tgt_dataset = src_datasets[0], seg_datasets[0], tgt_datasets[0]
     else:
         sample_ratios = [1] * len(src_datasets)
         sample_ratios[0] = upsample_primary
         src_dataset = ConcatDataset(src_datasets, sample_ratios)
-        ctc_dataset = ConcatDataset(ctc_datasets, sample_ratios)
+        seg_dataset = ConcatDataset(seg_datasets, sample_ratios)
         tgt_dataset = ConcatDataset(tgt_datasets, sample_ratios)
 
     if prepend_bos:
-        assert hasattr(src_dict, "bos_index") and hasattr(tgt_dict, "bos_index") and hasattr(ctc_dict, "bos_index")
+        assert hasattr(src_dict, "bos_index") and hasattr(tgt_dict, "bos_index") and hasattr(seg_dict, "bos_index")
         src_dataset = PrependTokenDataset(src_dataset, src_dict.bos())
-        ctc_dataset = PrependTokenDataset(ctc_dataset, ctc_dict.bos())
+        seg_dataset = PrependTokenDataset(seg_dataset, seg_dict.bos())
         tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
 
     align_dataset = None
     if load_alignments:
-        align_path = os.path.join(data_path, '{}.align.{}-{}-{}'.format(split, src, ctc, tgt))
+        align_path = os.path.join(data_path, '{}.align.{}-{}-{}'.format(split, src, seg, tgt))
         if indexed_dataset.dataset_exists(align_path, impl=dataset_impl):
             align_dataset = data_utils.load_indexed_dataset(align_path, None, dataset_impl)
 
@@ -100,22 +101,22 @@ def load_langpair_dataset(
     )
 
 
-@register_task('ctc_translation')
-class CTCTranslationTask(FairseqTask):
+@register_task('seg_translation')
+class SegTranslationTask(FairseqTask):
     """
     Segement one (source) language to source word sequence, then translate from the source word sequences to another (target) language.
 
     Args:
         src_dict (~fairseq.data.Dictionary): dictionary for the source char language
-        ctc_dict (~fairseq.data.Dictionary): dictionary for the source word language
+        seg_dict (~fairseq.data.Dictionary): dictionary for the source word language
         tgt_dict (~fairseq.data.Dictionary): dictionary for the target language
 
     .. note::
 
-        The ctc_translation task is compatible with :mod:`fairseq-train`,
+        The seg_translation task is compatible with :mod:`fairseq-train`,
         :mod:`fairseq-generate` and :mod:`fairseq-interactive`.
 
-    The ctc_translation task provides the following additional command-line
+    The seg_translation task provides the following additional command-line
     arguments:
 
     .. argparse::
@@ -131,7 +132,7 @@ class CTCTranslationTask(FairseqTask):
                             will be iterated upon during epochs in round-robin manner')
         parser.add_argument('-s', '--source-lang', default=None, metavar='SRC',
                             help='source char language')
-        parser.add_argument('-c', '--ctc-lang', default=None, metavar='CTC',
+        parser.add_argument('-c', '--seg-lang', default=None, metavar='CTC',
                             help='source word language (CTC)')
         parser.add_argument('-t', '--target-lang', default=None, metavar='TARGET',
                             help='target language')
@@ -143,24 +144,24 @@ class CTCTranslationTask(FairseqTask):
                             help='load the binarized alignments')
         parser.add_argument('--left-pad-source', default='True', type=str, metavar='BOOL',
                             help='pad the source on the left')
-        parser.add_argument('--left-pad-ctc', default='True', type=str, metavar='BOOL',
-                            help='pad the ctc on the left')
+        parser.add_argument('--left-pad-seg', default='True', type=str, metavar='BOOL',
+                            help='pad the seg on the left')
         parser.add_argument('--left-pad-target', default='False', type=str, metavar='BOOL',
                             help='pad the target on the left')
         parser.add_argument('--max-source-positions', default=1024, type=int, metavar='N',
                             help='max number of tokens in the source sequence')
-        parser.add_argument('--max-ctc-positions', default=1024, type=int, metavar='N',
-                            help='max number of tokens in the ctc sequence')
+        parser.add_argument('--max-seg-positions', default=1024, type=int, metavar='N',
+                            help='max number of tokens in the seg sequence')
         parser.add_argument('--max-target-positions', default=1024, type=int, metavar='N',
                             help='max number of tokens in the target sequence')
         parser.add_argument('--upsample-primary', default=1, type=int,
                             help='amount to upsample primary dataset')
         # fmt: on
 
-    def __init__(self, args, src_dict, ctc_dict, tgt_dict):
+    def __init__(self, args, src_dict, seg_dict, tgt_dict):
         super().__init__(args)
         self.src_dict = src_dict
-        self.ctc_dict = ctc_dict
+        self.seg_dict = seg_dict
         self.tgt_dict = tgt_dict
 
     @classmethod
@@ -171,7 +172,7 @@ class CTCTranslationTask(FairseqTask):
             args (argparse.Namespace): parsed command-line arguments
         """
         args.left_pad_source = options.eval_bool(args.left_pad_source)
-        args.left_pad_ctc = options.eval_bool(args.left_pad_ctc)
+        args.left_pad_seg = options.eval_bool(args.left_pad_seg)
         args.left_pad_target = options.eval_bool(args.left_pad_target)
         if getattr(args, 'raw_text', False):
             utils.deprecation_warning('--raw-text is deprecated, please use --dataset-impl=raw')
@@ -183,23 +184,23 @@ class CTCTranslationTask(FairseqTask):
         paths = args.data.split(':')
         assert len(paths) > 0
         # find language pair automatically
-        if args.source_lang is None or args.ctc_lang or args.target_lang is None:
-            args.source_lang, args.ctc_lang, args.target_lang = data_utils.infer_language_pair(paths[0])
-        if args.source_lang is None or args.ctc_lang or args.target_lang is None:
+        if args.source_lang is None or args.seg_lang or args.target_lang is None:
+            args.source_lang, args.seg_lang, args.target_lang = data_utils.infer_language_pair(paths[0])
+        if args.source_lang is None or args.seg_lang or args.target_lang is None:
             raise Exception('Could not infer language pair, please provide it explicitly')
 
         # load dictionaries
         src_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.source_lang)))
-        ctc_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.ctc_lang)))
+        seg_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.seg_lang)))
         tgt_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.target_lang)))
-        assert src_dict.pad() == tgt_dict.pad(), src_dict.pad() == ctc_dict.pad()
-        assert src_dict.eos() == tgt_dict.eos(), src_dict.eos() == ctc_dict.pad()
-        assert src_dict.unk() == tgt_dict.unk(), src_dict.unk() == ctc_dict.pad()
+        assert src_dict.pad() == tgt_dict.pad(), src_dict.pad() == seg_dict.pad()
+        assert src_dict.eos() == tgt_dict.eos(), src_dict.eos() == seg_dict.pad()
+        assert src_dict.unk() == tgt_dict.unk(), src_dict.unk() == seg_dict.pad()
         print('| [{}] dictionary: {} types'.format(args.source_lang, len(src_dict)))
-        print('| [{}] dictionary: {} types'.format(args.ctc_lang, len(ctc_dict)))
+        print('| [{}] dictionary: {} types'.format(args.seg_lang, len(seg_dict)))
         print('| [{}] dictionary: {} types'.format(args.target_lang, len(tgt_dict)))
 
-        return cls(args, src_dict, ctc_dict, tgt_dict)
+        return cls(args, src_dict, seg_dict, tgt_dict)
 
     def load_dataset(self, split, epoch=0, combine=False, **kwargs):
         """Load a given dataset split.
@@ -212,17 +213,17 @@ class CTCTranslationTask(FairseqTask):
         data_path = paths[epoch % len(paths)]
 
         # infer langcode
-        src, ctc, tgt = self.args.source_lang, self.args.ctc_lang, self.args.target_lang
+        src, seg, tgt = self.args.source_lang, self.args.seg_lang, self.args.target_lang
 
         self.datasets[split] = load_langpair_dataset(
-            data_path, split, src, self.src_dict, ctc, self.ctc_dict, tgt, self.tgt_dict,
+            data_path, split, src, self.src_dict, seg, self.seg_dict, tgt, self.tgt_dict,
             combine=combine, dataset_impl=self.args.dataset_impl,
             upsample_primary=self.args.upsample_primary,
             left_pad_source=self.args.left_pad_source,
-            left_pad_ctc=self.args.left_pad_ctc,
+            left_pad_seg=self.args.left_pad_seg,
             left_pad_target=self.args.left_pad_target,
             max_source_positions=self.args.max_source_positions,
-            max_ctc_positions=self.args.max_ctc_positions,
+            max_seg_positions=self.args.max_seg_positions,
             max_target_positions=self.args.max_target_positions,
             load_alignments=self.args.load_alignments,
         )
@@ -232,7 +233,7 @@ class CTCTranslationTask(FairseqTask):
 
     def max_positions(self):
         """Return the max sentence length allowed by the task."""
-        return (self.args.max_source_positions, self.args.max_ctc_positions, self.args.max_target_positions)
+        return (self.args.max_source_positions, self.args.max_seg_positions, self.args.max_target_positions)
 
     @property
     def source_dictionary(self):
@@ -240,9 +241,9 @@ class CTCTranslationTask(FairseqTask):
         return self.src_dict
 
     @property
-    def ctc_dictionary(self):
+    def seg_dictionary(self):
         """Return the source word:class:`~fairseq.data.Dictionary`."""
-        return self.ctc_dict
+        return self.seg_dict
 
     @property
     def target_dictionary(self):

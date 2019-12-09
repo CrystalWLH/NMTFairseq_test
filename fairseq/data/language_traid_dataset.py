@@ -215,7 +215,7 @@ class LanguageTraidDataset(FairseqDataset):
             assert src_dict.pad() == tgt_dict.pad()
             assert src_dict.eos() == tgt_dict.eos()
             assert src_dict.unk() == tgt_dict.unk()
-        if ctc_dict is not None:
+        if seg_dict is not None:
             assert src_dict.pad() == seg_dict.pad()
             assert src_dict.eos() == seg_dict.eos()
             assert src_dict.unk() == seg_dict.unk()

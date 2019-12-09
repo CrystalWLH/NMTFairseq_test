@@ -256,7 +256,7 @@ def add_preprocess_args(parser):
     group.add_argument("--workers", metavar="N", default=1, type=int,
                        help="number of parallel workers")
     #add by Lihui Wang (2019-11-28)
-    group.add_argument("--have-ctc",  action="store_true",
+    group.add_argument("--have-seg",  action="store_true",
                        help="Need have the source word sequence.")
     group.add_argument("-seg", "--seg-lang", default=None, metavar="SEG",
                        help="source segmentation language")

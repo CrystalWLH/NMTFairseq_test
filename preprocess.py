@@ -27,7 +27,7 @@ def main(args):
     os.makedirs(args.destdir, exist_ok=True)
     target = not args.only_source
     #add by Lihui Wang (2019-11-28)
-    segmentation = not args.have_ctc
+    segmentation = not args.have_seg
 
     task = tasks.get_task(args.task)
 
