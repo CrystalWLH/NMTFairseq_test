@@ -1,8 +1,8 @@
-'''
-    Segmentation and NMT based on Transformer.
-    Author: Lihui Wang
-    Date: 2019-11-28
-'''
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
 import math
 
 import torch
@@ -31,20 +31,16 @@ DEFAULT_MAX_SOURCE_POSITIONS = 1024
 DEFAULT_MAX_TARGET_POSITIONS = 1024
 
 
-@register_model('seg_nmt_transformer')
-class Seg_NMT_TransformerModel(FairseqEncoderDecoderDoubleModel):
+@register_model('seg_nmt_ctc')
+class SegNmtCTCModel(BaseFairseqModel):
     """
-    Segmentation based on Transformer and NMT based on Transformer.
-    Args:
-        Segmentation:
-            encoder (TransformerEncoder): the encoder
-            decoder (TransformerDecoder): the decoder
-        NMT:
-            encoder (TransformerEncoder): the encoder
-            decoder (TransformerDecoder): the decoder
+    seg_nmt model for training segmentation and NMT jointly.
 
-    The Transformer model provides the following named architectures and
-    command-line arguments:
+    Args:
+        shared_encoder(TransformerEncoder): seg and nmt shared encoder
+        ctc_decoder (TransformerEncoder): the seg decoder for ctc
+        nmt_encoder (TransformerEncoder): the nmt encoder
+        nmt_decoder (TransformerDecoder): the nmt decoder
 
     .. argparse::
         :ref: fairseq.models.transformer_parser
@@ -52,8 +48,12 @@ class Seg_NMT_TransformerModel(FairseqEncoderDecoderDoubleModel):
     """
 
 
-    def __init__(self, encoder_seg, decoder_seg, encoder_nmt, decoder_nmt):
-        super().__init__(encoder_seg, decoder_seg, encoder_nmt, decoder_nmt)
+    def __init__(self, shared_encoder, ctc_decoder, nmt_encoder, nmt_decoder):
+        super().__init__()
+        self.shared_encoder = shared_encoder
+        self.ctc_decoder = ctc_decoder
+        self.nmt_encoder = nmt_encoder
+        self.nmt_decoder = nmt_decoder
         self.supports_align_args = True
 
     @staticmethod
@@ -126,7 +126,6 @@ class Seg_NMT_TransformerModel(FairseqEncoderDecoderDoubleModel):
         parser.add_argument('--decoder-layers-to-keep', default=None,
                             help='which layers to *keep* when pruning as a comma-separated list')
         #TODO: Add args for ctc segmentation model.
-        
         # fmt: on
 
     @classmethod
@@ -180,13 +179,19 @@ class Seg_NMT_TransformerModel(FairseqEncoderDecoderDoubleModel):
                 tgt_dict, args.decoder_embed_dim, args.decoder_embed_path
             )
 
-        encoder = cls.build_encoder(args, src_dict, encoder_embed_tokens)
-        decoder = cls.build_decoder(args, tgt_dict, decoder_embed_tokens)
-        return cls(encoder, decoder)
+        shared_encoder = cls.build_shared_encoder(args, src_dict, encoder_embed_tokens)
+        nmt_encoder = cls.build_nmt_encoder(args, src_dict, encoder_embed_tokens)
+        nmt_decoder = cls.build_decoder(args, tgt_dict, decoder_embed_tokens)
+        ctc_decoder = cls.build_ctc_decoder(args, input_dim, output_dim)
+        return cls(shared_encoder, ctc_decoder, nmt_encoder, mmt_decoder)
 
     @classmethod
-    def build_encoder(cls, args, src_dict, embed_tokens):
+    def build_shared_encoder(cls, args, src_dict, embed_tokens):
         return TransformerEncoder(args, src_dict, embed_tokens)
+
+    @classmethod
+    def build_nmt_encoder(cls, args, src_dict, embed_tokens):
+        return NmtTransformerEncoder(args, src_dict, embed_tokens)
 
     @classmethod
     def build_decoder(cls, args, tgt_dict, embed_tokens):
@@ -197,68 +202,122 @@ class Seg_NMT_TransformerModel(FairseqEncoderDecoderDoubleModel):
             no_encoder_attn=getattr(args, 'no_cross_attention', False),
         )
 
-
-@register_model('transformer_align')
-class TransformerAlignModel(TransformerModel):
-    """
-    See "Jointly Learning to Align and Translate with Transformer
-    Models" (Garg et al., EMNLP 2019).
-    """
-
-    def __init__(self, encoder, decoder, args):
-        super().__init__(encoder, decoder)
-        self.alignment_heads = args.alignment_heads
-        self.alignment_layer = args.alignment_layer
-        self.full_context_alignment = args.full_context_alignment
-
-    @staticmethod
-    def add_args(parser):
-        # fmt: off
-        super(TransformerAlignModel, TransformerAlignModel).add_args(parser)
-        parser.add_argument('--alignment-heads', type=int, metavar='D',
-                            help='Number of cross attention heads per layer to supervised with alignments')
-        parser.add_argument('--alignment-layer', type=int, metavar='D',
-                            help='Layer number which has to be supervised. 0 corresponding to the bottommost layer.')
-        parser.add_argument('--full-context-alignment', type=bool, metavar='D',
-                            help='Whether or not alignment is supervised conditioned on the full target context.')
-        # fmt: on
-
     @classmethod
-    def build_model(cls, args, task):
-        # set any default arguments
-        transformer_align(args)
+    def build_ctc_decoder(args, input_dim, output_dim):
+        return CtcDecoder(args, input_dim, output_dim)
 
-        transformer_model = TransformerModel.build_model(args, task)
-        return TransformerAlignModel(transformer_model.encoder, transformer_model.decoder, args)
+    def get_targets(self, sample, net_output):
+        """Get targets from either the sample or the net's output."""
+        return sample['ctc_target'], sample['nmt_target']
 
-    def forward(self, src_tokens, src_lengths, prev_output_tokens):
-        encoder_out = self.encoder(src_tokens, src_lengths)
-        return self.forward_decoder(prev_output_tokens, encoder_out)
+    def forward(args, src_tokens, src_lengths, prev_output_tokens, **kwargs):
+        shared_encoder_out = self.shared_encoder(src_tokens, src_lengths=src_lengths, **kwargs)
+        ctc_decoder_out = self.ctc_decoder(shared_encoder_out)
+        nmt_encoder_out = self.nmt_encoder(shared_encoder_out, src_lengths)
+        nmt_decoder_out = self.nmt_decoder(prev_output_tokens, encoder_out=nmt_encoder_out, **kwargs)
+        return ctc_decoder_out, nmt_decoder_out
 
-    def forward_decoder(
-        self,
-        prev_output_tokens,
-        encoder_out=None,
-        incremental_state=None,
-        features_only=False,
-        **extra_args,
-    ):
-        attn_args = {'alignment_layer': self.alignment_layer, 'alignment_heads': self.alignment_heads}
-        decoder_out = self.decoder(
-            prev_output_tokens,
-            encoder_out,
-            **attn_args,
-            **extra_args,
-        )
+class CtcDecoder(nn.module):
+    """
+    input: (Tensor) seq_len, batch, input_dim
+    output: (Tensor) seq_len, batch, words_num
+    """
+    def __init__(self, args, input_dim, output_dim):
+        super().__init__()
+        self.fc_layer = nn.Sequential(nn.Linear(input_dim, output_dim), nn.RELU(True))
 
-        if self.full_context_alignment:
-            attn_args['full_context_alignment'] = self.full_context_alignment
-            _, alignment_out = self.decoder(
-                prev_output_tokens, encoder_out, features_only=True, **attn_args, **extra_args,
-            )
-            decoder_out[1]['attn'] = alignment_out['attn']
+    def forward(input):
+        x = self.fc(input)
+        return x
 
-        return decoder_out
+class NmtTransformerEncoder(nn.module):
+    """
+    Transformer NMT encoder, whose input is the output of shared encoder.
+    """
+    def __init__(self, args, dictionary, embed_tokens):
+        super().__init__(dictionary)
+        self.register_buffer('version', torch.Tensor([3]))
+
+        self.dropout = args.dropout
+        self.encoder_layerdrop = args.encoder_layerdrop
+
+        embed_dim = embed_tokens.embedding_dim
+        self.padding_idx = embed_tokens.padding_idx
+        self.max_source_positions = args.max_source_positions
+
+        self.embed_tokens = embed_tokens
+        self.embed_scale = math.sqrt(embed_dim)
+        self.embed_positions = PositionalEmbedding(
+            args.max_source_positions, embed_dim, self.padding_idx,
+            learned=args.encoder_learned_pos,
+        ) if not args.no_token_positional_embeddings else None
+
+        self.layer_wise_attention = getattr(args, 'layer_wise_attention', False)
+
+        self.layers = nn.ModuleList([])
+        self.layers.extend([
+            TransformerEncoderLayer(args)
+            for i in range(args.encoder_layers)
+        ])
+
+        if args.encoder_normalize_before:
+            self.layer_norm = LayerNorm(embed_dim)
+        else:
+            self.layer_norm = None
+
+    def forward(self, input, src_lengths, cls_input=None, return_all_hiddens=False):
+        """
+        Args:
+            x (Tensor): input (src_len, batch, input_dim)
+            src_lengths (torch.LongTensor): lengths of each source sentence of
+                shape `(batch)`
+            return_all_hiddens (bool, optional): also return all of the
+                intermediate hidden states (default: False).
+
+        Returns:
+            dict:
+                - **encoder_out** (Tensor): the last encoder layer's output of
+                  shape `(src_len, batch, embed_dim)`
+                - **encoder_padding_mask** (ByteTensor): the positions of
+                  padding elements of shape `(batch, src_len)`
+                - **encoder_states** (List[Tensor]): all intermediate
+                  hidden states of shape `(src_len, batch, embed_dim)`.
+                  Only populated if *return_all_hiddens* is True.
+        """
+        if self.layer_wise_attention:
+            return_all_hiddens = True
+
+        #x, encoder_embedding = self.forward_embedding(src_tokens)
+
+        # B x T x C -> T x B x C
+        x = input.transpose(0, 1)
+
+        # compute padding mask
+        encoder_padding_mask = src_tokens.eq(self.padding_idx)
+        if not encoder_padding_mask.any():
+            encoder_padding_mask = None
+
+        encoder_states = [] if return_all_hiddens else None
+
+        # encoder layers
+        for layer in self.layers:
+            # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
+            dropout_probability = random.uniform(0, 1)
+            if not self.training or (dropout_probability > self.encoder_layerdrop):
+                x = layer(x, encoder_padding_mask)
+                if return_all_hiddens:
+                    encoder_states.append(x)
+
+        if self.layer_norm:
+            x = self.layer_norm(x)
+            if return_all_hiddens:
+                encoder_states[-1] = x
+
+        return {
+            'encoder_out': x,  # T x B x C
+            'encoder_padding_mask': encoder_padding_mask,  # B x T
+            'encoder_states': encoder_states,  # List[T x B x C]
+        }
 
 
 class TransformerEncoder(FairseqEncoder):
