@@ -28,17 +28,18 @@ from fairseq.modules import (
 import random
 
 DEFAULT_MAX_SOURCE_POSITIONS = 1024
+DEFAULT_MAX_Seg_POSITIONS = 1024
 DEFAULT_MAX_TARGET_POSITIONS = 1024
 
 
 @register_model('seg_nmt_ctc')
-class SegNmtCTCModel(BaseFairseqModel):
+class SegNmtCTCModel(FairseqEncoderDecoderDoubleModel):
     """
     seg_nmt model for training segmentation and NMT jointly.
 
     Args:
         shared_encoder(TransformerEncoder): seg and nmt shared encoder
-        ctc_decoder (TransformerEncoder): the seg decoder for ctc
+        ctc_decoder (TransformerDecoder): the seg decoder for ctc
         nmt_encoder (TransformerEncoder): the nmt encoder
         nmt_decoder (TransformerDecoder): the nmt decoder
 
@@ -50,10 +51,10 @@ class SegNmtCTCModel(BaseFairseqModel):
 
     def __init__(self, shared_encoder, ctc_decoder, nmt_encoder, nmt_decoder):
         super().__init__()
-        self.shared_encoder = shared_encoder
-        self.ctc_decoder = ctc_decoder
-        self.nmt_encoder = nmt_encoder
-        self.nmt_decoder = nmt_decoder
+        # self.shared_encoder = shared_encoder
+        # self.ctc_decoder = ctc_decoder
+        # self.nmt_encoder = nmt_encoder
+        # self.nmt_decoder = nmt_decoder
         self.supports_align_args = True
 
     @staticmethod
@@ -69,34 +70,64 @@ class SegNmtCTCModel(BaseFairseqModel):
                             help='dropout probability for attention weights')
         parser.add_argument('--activation-dropout', '--relu-dropout', type=float, metavar='D',
                             help='dropout probability after activation in FFN.')
-        parser.add_argument('--encoder-embed-path', type=str, metavar='STR',
-                            help='path to pre-trained encoder embedding')
-        parser.add_argument('--encoder-embed-dim', type=int, metavar='N',
-                            help='encoder embedding dimension')
-        parser.add_argument('--encoder-ffn-embed-dim', type=int, metavar='N',
-                            help='encoder embedding dimension for FFN')
-        parser.add_argument('--encoder-layers', type=int, metavar='N',
-                            help='num encoder layers')
-        parser.add_argument('--encoder-attention-heads', type=int, metavar='N',
-                            help='num encoder attention heads')
-        parser.add_argument('--encoder-normalize-before', action='store_true',
-                            help='apply layernorm before each encoder block')
-        parser.add_argument('--encoder-learned-pos', action='store_true',
-                            help='use learned positional embeddings in the encoder')
-        parser.add_argument('--decoder-embed-path', type=str, metavar='STR',
-                            help='path to pre-trained decoder embedding')
-        parser.add_argument('--decoder-embed-dim', type=int, metavar='N',
-                            help='decoder embedding dimension')
-        parser.add_argument('--decoder-ffn-embed-dim', type=int, metavar='N',
-                            help='decoder embedding dimension for FFN')
-        parser.add_argument('--decoder-layers', type=int, metavar='N',
-                            help='num decoder layers')
-        parser.add_argument('--decoder-attention-heads', type=int, metavar='N',
-                            help='num decoder attention heads')
-        parser.add_argument('--decoder-learned-pos', action='store_true',
-                            help='use learned positional embeddings in the decoder')
-        parser.add_argument('--decoder-normalize-before', action='store_true',
-                            help='apply layernorm before each decoder block')
+        #modified by Lihui Wang (2019-12-10)
+        parser.add_argument('--shared-encoder-embed-path', type=str, metavar='STR',
+                            help='path to pre-trained shared encoder embedding')
+        parser.add_argument('--shared-encoder-embed-dim', type=int, metavar='N',
+                            help='shared encoder embedding dimension')
+        parser.add_argument('--shared-encoder-ffn-embed-dim', type=int, metavar='N',
+                            help='shared encoder embedding dimension for FFN')
+        parser.add_argument('--shared encoder-layers', type=int, metavar='N',
+                            help='num shared encoder layers')
+        parser.add_argument('--shared-encoder-attention-heads', type=int, metavar='N',
+                            help='num shared encoder attention heads')
+        parser.add_argument('--shared encoder-normalize-before', action='store_true',
+                            help='apply layernorm before each shared encoder block')
+        parser.add_argument('--shared-encoder-learned-pos', action='store_true',
+                            help='use learned positional embeddings in the shared encoder')
+        parser.add_argument('--ctc-decoder-embed-path', type=str, metavar='STR',
+                            help='path to pre-trained ctc decoder embedding')
+        parser.add_argument('--ctc-decoder-embed-dim', type=int, metavar='N',
+                            help='ctc decoder embedding dimension')
+        parser.add_argument('--ctc-decoder-ffn-embed-dim', type=int, metavar='N',
+                            help='ctc decoder embedding dimension for FFN')
+        parser.add_argument('--ctc-decoder-layers', type=int, metavar='N',
+                            help='num ctc decoder layers')
+        parser.add_argument('--ctc-decoder-attention-heads', type=int, metavar='N',
+                            help='num ctc decoder attention heads')
+        parser.add_argument('--ctc-decoder-learned-pos', action='store_true',
+                            help='use learned positional embeddings in the ctc decoder')
+        parser.add_argument('--ctc-decoder-normalize-before', action='store_true',
+                            help='apply layernorm before each ctc decoder block')
+        parser.add_argument('--nmt-encoder-embed-path', type=str, metavar='STR',
+                            help='path to pre-trained nmt encoder embedding')
+        parser.add_argument('--nmt-encoder-embed-dim', type=int, metavar='N',
+                            help='nmt encoder embedding dimension')
+        parser.add_argument('--nmt-encoder-ffn-embed-dim', type=int, metavar='N',
+                            help='nmt encoder embedding dimension for FFN')
+        parser.add_argument('--nmt encoder-layers', type=int, metavar='N',
+                            help='num nmt encoder layers')
+        parser.add_argument('--nmt-encoder-attention-heads', type=int, metavar='N',
+                            help='num nmt encoder attention heads')
+        parser.add_argument('--nmt encoder-normalize-before', action='store_true',
+                            help='apply layernorm before each nmt encoder block')
+        parser.add_argument('--nmt-encoder-learned-pos', action='store_true',
+                            help='use learned positional embeddings in the nmt encoder')
+        parser.add_argument('--nmt-decoder-embed-path', type=str, metavar='STR',
+                            help='path to pre-trained nmt decoder embedding')
+        parser.add_argument('--nmt-decoder-embed-dim', type=int, metavar='N',
+                            help='nmt decoder embedding dimension')
+        parser.add_argument('--nmt-decoder-ffn-embed-dim', type=int, metavar='N',
+                            help='nmt decoder embedding dimension for FFN')
+        parser.add_argument('--nmt-decoder-layers', type=int, metavar='N',
+                            help='num nmt decoder layers')
+        parser.add_argument('--nmt-decoder-attention-heads', type=int, metavar='N',
+                            help='num nmt decoder attention heads')
+        parser.add_argument('--nmt-decoder-learned-pos', action='store_true',
+                            help='use learned positional embeddings in the nmt decoder')
+        parser.add_argument('--nmt-decoder-normalize-before', action='store_true',
+                            help='apply layernorm before each nmt decoder block')
+        
         parser.add_argument('--share-decoder-input-output-embed', action='store_true',
                             help='share decoder input and output embeddings')
         parser.add_argument('--share-all-embeddings', action='store_true',
@@ -125,7 +156,6 @@ class SegNmtCTCModel(BaseFairseqModel):
                             help='which layers to *keep* when pruning as a comma-separated list')
         parser.add_argument('--decoder-layers-to-keep', default=None,
                             help='which layers to *keep* when pruning as a comma-separated list')
-        #TODO: Add args for ctc segmentation model.
         # fmt: on
 
     @classmethod
@@ -144,8 +174,11 @@ class SegNmtCTCModel(BaseFairseqModel):
             args.max_source_positions = DEFAULT_MAX_SOURCE_POSITIONS
         if not hasattr(args, 'max_target_positions'):
             args.max_target_positions = DEFAULT_MAX_TARGET_POSITIONS
+        #add by Lihui Wang (2019-12-10)
+        if not hasattr(args, 'max_seg_positions'):
+            args.max_seg_positions = DEFAULT_MAX_Seg_POSITIONS
 
-        src_dict, tgt_dict = task.source_dictionary, task.target_dictionary
+        src_dict, ctc_dict, tgt_dict = task.source_dictionary, task.seg_dictionary, task.target_dictionary
 
         def build_embedding(dictionary, embed_dim, path=None):
             num_embeddings = len(dictionary)
@@ -160,26 +193,33 @@ class SegNmtCTCModel(BaseFairseqModel):
         if args.share_all_embeddings:
             if src_dict != tgt_dict:
                 raise ValueError('--share-all-embeddings requires a joined dictionary')
-            if args.encoder_embed_dim != args.decoder_embed_dim:
+            if args.shared_encoder_embed_dim != args.nmt_decoder_embed_dim:
                 raise ValueError(
-                    '--share-all-embeddings requires --encoder-embed-dim to match --decoder-embed-dim')
-            if args.decoder_embed_path and (
-                    args.decoder_embed_path != args.encoder_embed_path):
-                raise ValueError('--share-all-embeddings not compatible with --decoder-embed-path')
-            encoder_embed_tokens = build_embedding(
-                src_dict, args.encoder_embed_dim, args.encoder_embed_path
+                    '--share-all-embeddings requires --shared-encoder-embed-dim to match --nmt-decoder-embed-dim')
+            if args.nmt_decoder_embed_path and (
+                    args.nmt_decoder_embed_path != args.shared_encoder_embed_path):
+                raise ValueError('--share-all-embeddings not compatible with --nmt-decoder-embed-path')
+            shared_encoder_embed_tokens = build_embedding(
+                src_dict, args.shared_encoder_embed_dim, args.shared_encoder_embed_path
             )
-            decoder_embed_tokens = encoder_embed_tokens
+            nmt_decoder_embed_tokens = shared_encoder_embed_tokens
             args.share_decoder_input_output_embed = True
         else:
-            encoder_embed_tokens = build_embedding(
-                src_dict, args.encoder_embed_dim, args.encoder_embed_path
+            shared_encoder_embed_tokens = build_embedding(
+                src_dict, args.shared_encoder_embed_dim, args.shared_encoder_embed_path
             )
-            decoder_embed_tokens = build_embedding(
-                tgt_dict, args.decoder_embed_dim, args.decoder_embed_path
+            ctc_decoer_embed_tokens = build_embedding(
+                ctc_dict, args.ctc_decoder_embed_dim, args.ctc_embed_path
+            )
+            nmt_encoder_embed_tokens = build_embedding(
+                ctc_dict, args.nmt_encoder_embed_dim, args.nmt_encoder_embed_path
+            )
+            nmt_decoder_embed_tokens = build_embedding(
+                tgt_dict, args.nmt_decoder_embed_dim, args.nmt_decoder_embed_path
             )
 
-        shared_encoder = cls.build_shared_encoder(args, src_dict, encoder_embed_tokens)
+        #questions!!!
+        shared_encoder = cls.build_shared_encoder(args, src_dict, shared_encoder_embed_tokens)
         nmt_encoder = cls.build_nmt_encoder(args, src_dict, encoder_embed_tokens)
         nmt_decoder = cls.build_decoder(args, tgt_dict, decoder_embed_tokens)
         ctc_decoder = cls.build_ctc_decoder(args, input_dim, output_dim)

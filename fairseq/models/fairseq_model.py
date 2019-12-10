@@ -501,7 +501,7 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         """
         #TODO: decoder_seg input need to be modified.
         encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
-        decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_seg, **kwargs)
+        decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
         encoder_out_nmt = self.encoder_nmt(encoder_out_seg, src_lengths=seg_lengths, **kwargs)
         decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
         return decoder_out_nmt
@@ -520,8 +520,8 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
                 - the decoder's features of shape `(batch, tgt_len, embed_dim)`
                 - a dictionary with any model-specific outputs
         """
-        encoder_out_seg = self.encoder_seg(src_tokens, src_lengths=src_lengths, **kwargs)
-        decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_seg, **kwargs)
+        encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
+        decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
         encoder_out_nmt = self.encoder_nmt(encoder_out_seg, src_lengths=seg_lengths, **kwargs)
         features = self.decoder_nmt.extract_features(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
         return features
@@ -532,7 +532,7 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
 
     def max_positions_seg(self):
         """Maximum length supported by the model."""
-        return (self.encoder_seg.max_positions(), self.decoder_seg.max_positions())
+        return (self.encoder_shared.max_positions(), self.decoder_seg.max_positions())
     def max_positions_nmt(self):
         """Maximum length supported by the model."""
         return (self.encoder_nmt.max_positions(), self.decoder_nmt.max_positions())
