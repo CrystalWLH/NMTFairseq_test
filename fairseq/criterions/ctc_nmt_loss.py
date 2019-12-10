@@ -1,7 +1,9 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
+'''
+    CTC Segmentation and NMT loss.
+    Author: Shaojun Gao
+    Create Date: 2019-12-09
+    Update Date: 2019-12-10
+'''
 
 import math
 import torch.nn.functional as F
