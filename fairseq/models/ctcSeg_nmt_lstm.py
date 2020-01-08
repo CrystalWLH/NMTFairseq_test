@@ -215,7 +215,7 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             pretrained_embed=pretrained_shared_encoder_embed,
         )
         nmt_encoder = LSTMEncoder(
-            dictionary=task.seg_dictionary,
+            dictionary=task.target_dictionary,
             embed_dim=args.nmt_encoder_embed_dim,
             hidden_size=args.nmt_encoder_hidden_size,
             num_layers=args.nmt_encoder_layers,
@@ -224,23 +224,12 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             bidirectional=args.nmt_encoder_bidirectional,
             pretrained_embed=pretrained_nmt_encoder_embed,
         )
-        ctc_decoder = LSTMDecoder(
-            dictionary=task.seg_dictionary,
-            embed_dim=args.ctc_decoder_embed_dim,
-            hidden_size=args.ctc_deocder_hidden_size,
-            out_embed_dim=args.ctc_decoder_out_embed_dim,
+        ctc_decoder = CTCDecoder(
+            encoder_output_units=args.shared_encoder_hidden_size,
+            out_dim=len(task.seg_dictionary),
+            hidden_size=args.ctc_decoder_hidden_size,
             num_layers=args.ctc_decoder_layers,
-            dropout_in=args.ctc_decoder_dropout_in,
-            dropout_out=args.ctc_decoder_dropout_out,
-            attention=options.eval_bool(args.ctc_decoder_attention),
-            encoder_output_units=shared_encoder.output_units,
-            pretrained_embed=pretrained_ctc_decoder_embed,
-            share_input_output_embed=args.share_decoder_input_output_embed,
-            adaptive_softmax_cutoff=(
-                options.eval_str_list(args.adaptive_softmax_cutoff, type=int)
-                if args.criterion == 'adaptive_loss' else None
-            ),
-        )
+            )
         nmt_decoder = LSTMDecoder(
             dictionary=task.target_dictionary,
             embed_dim=args.nmt_decoder_embed_dim,
@@ -557,6 +546,22 @@ class LSTMDecoder(FairseqIncrementalDecoder):
 
     def make_generation_fast_(self, need_attn=False, **kwargs):
         self.need_attn = need_attn
+
+class CTCDecoder(nn.Module):
+    def __init__(self, encoder_output_units=512, out_dim=512, hidden_size=512, num_layers=1):
+        super().__init__()
+        self.encoder_output_units = encoder_output_units
+        self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers)
+        self.fc_out = Linear(hidden_size, out_dim)
+
+    def forward(self, encoder_out):
+        encoder_out = encoder_out['encoder_out']
+        rnn_out = self.rnn(encoder_out)
+        fc_out = self.fc_out(rnn_out)
+        out = fc_out.log_softmax(2).detach().requires_grad_()
+        return out
+
+
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
