@@ -38,8 +38,10 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
     def add_args(parser):
         """Add model-specific arguments to the parser."""
         # fmt: off
-        parser.add_argument('--just-ctc', default=False, action='store_true',
-                            help='ctc segmentation or ctc segmentation + nmt')
+        #parser.add_argument('--just-ctc', default=False, action='store_true',
+        #                    help='ctc segmentation or ctc segmentation + nmt')
+        parser.add_argument('--ctc-weight', type=float, default=0, help='ctc weight for ctc loss')
+        parser.add_argument('--nmt-weight', type=float, default=1, help='nmt weight for nmt loss')
         parser.add_argument('--dropout', type=float, metavar='D',
                             help='dropout probability')
         parser.add_argument('--shared-encoder-embed-dim', type=int, metavar='N',
@@ -601,7 +603,7 @@ def Linear(in_features, out_features, bias=True, dropout=0):
 
 @register_model_architecture('seg_nmt_ctc_lstm', 'seg_nmt_ctc_lstm')
 def base_architecture(args):
-    args.just_ctc = getattr(args, 'just_ctc', args.just_ctc)
+    #args.just_ctc = getattr(args, 'just_ctc', args.just_ctc)
     args.dropout = getattr(args, 'dropout', 0.1)
     args.shared_encoder_embed_dim = getattr(args, 'shared_encoder_embed_dim', 512)
     args.shared_encoder_embed_path = getattr(args, 'shared_encoder_embed_path', None)
@@ -645,7 +647,7 @@ def base_architecture(args):
 
 @register_model_architecture('seg_nmt_ctc_lstm', 'my_ctc_nmt_lstm')
 def my_ctc_nmt_lstm(args):
-    args.just_ctc = getattr(args, 'just_ctc', args.just_ctc)
+    #args.just_ctc = getattr(args, 'just_ctc', args.just_ctc)
     args.dropout = getattr(args, 'dropout', 0.1)
     args.shared_encoder_embed_dim = getattr(args, 'shared_encoder_embed_dim', args.shared_encoder_embed_dim)
     args.shared_encoder_hidden_size = getattr(args, 'shared_encoder_hidden_size', args.shared_encoder_hidden_size)

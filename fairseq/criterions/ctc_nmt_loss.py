@@ -18,6 +18,9 @@ class CtcNmtCriterion(FairseqCriterion):
 
     def __init__(self, args, task):
         super().__init__(args, task)
+        self._ctc_weight = args.ctc_weight
+        self._nmt_weight = args.nmt_weight
+
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -27,34 +30,35 @@ class CtcNmtCriterion(FairseqCriterion):
         2) the sample size, which is used as the denominator for the gradient
         3) logging outputs to display while training
         """
-        if self.args.just_ctc:
-            ctc_out = model(**sample['net_input'], True)
-            ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
-            sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
-            logging_output = {
-                'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
-                'nmt_loss': 0,
-                'nll_loss': 0,
-                'ntokens': sample['ntokens'],
-                'nsentences': sample['target'].size(0),
-                'sample_size': sample_size,
-            }
-            return ctc_loss, sample_size, logging_output
-        else:
-            ctc_out, nmt_out = model(**sample['net_input'], False)
-            ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
-            nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduct=reduce)
-            sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
-            logging_output = {
-                'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
-                'nmt_loss': utils.item(nmt_loss.data) if reduce else nmt_loss.data,
-                'nll_loss': utils.item(nmt_loss.data) if reduce else nmt_loss.data,
-                'ntokens': sample['ntokens'],
-                'nsentences': sample['target'].size(0),
-                'sample_size': sample_size,
-            }
-            #TODO: all loss = ctcloss * alpla + nmtloss * beta
-            return ctc_loss, nmt_loss, sample_size, logging_output
+        # if self.args.just_ctc:
+        #     ctc_out = model(**sample['net_input'], True)
+        #     ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
+        #     sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
+        #     logging_output = {
+        #         'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
+        #         'nmt_loss': 0,
+        #         'nll_loss': 0,
+        #         'ntokens': sample['ntokens'],
+        #         'nsentences': sample['target'].size(0),
+        #         'sample_size': sample_size,
+        #     }
+        #     return ctc_loss, sample_size, logging_output
+        #else:
+        ctc_out, nmt_out = model(**sample['net_input'], False)
+        ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
+        nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduct=reduce)
+        sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
+        logging_output = {
+            'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
+            'nmt_loss': utils.item(nmt_loss.data) if reduce else nmt_loss.data,
+            'nll_loss': utils.item(nmt_loss.data) if reduce else nmt_loss.data,
+            'ntokens': sample['ntokens'],
+            'nsentences': sample['target'].size(0),
+            'sample_size': sample_size,
+        }
+        #TODO: all loss = ctcloss * alpla + nmtloss * beta
+        loss = ctc_loss * self._ctc_weight + nmt_loss * self._nmt_weight
+        return loss , sample_size, logging_output
 
     def compute_nmt_loss(self, model, nmt_output, sample, reduce=True):
         lprobs = model.get_normalized_probs(nmt_output, log_probs=True)
