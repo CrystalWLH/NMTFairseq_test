@@ -44,7 +44,7 @@ class CtcNmtCriterion(FairseqCriterion):
         #     }
         #     return ctc_loss, sample_size, logging_output
         #else:
-        ctc_out, nmt_out = model(**sample['net_input'], False)
+        ctc_out, nmt_out = model(**sample['net_input'])
         ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
         nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduct=reduce)
         sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
