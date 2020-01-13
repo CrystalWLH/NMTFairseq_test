@@ -470,7 +470,7 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         # assert isinstance(self.encoder_nmt, FairseqEncoder)
         # assert isinstance(self.decoder_nmt, FairseqDecoder)
 
-    def forward(self, src_tokens, src_lengths, seg_lengths, prev_output_tokens, prev_output_tokens_seg, just_ctc, **kwargs):
+    def forward(self, src_tokens, src_lengths, seg_lengths, prev_output_tokens, prev_output_tokens_seg, **kwargs):
         """
         Run the forward pass for segmentation + NMT based encoder-decoder model.
 
@@ -493,7 +493,6 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
                 `(batch, tgt_len)`, for teacher forcing
             prev_output_tokens_seg (LongTensor): previous decoder outputs of shape in Seg
                 `(batch, seg_len)`, for teacher forcing
-            just_ctc (Bool): ctc segmentation or ctc segmentation + nmt
 
         Returns:
             double tuple:
@@ -501,16 +500,16 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
                 - a dictionary with any model-specific outputs
         """
         #TODO: decoder_seg input need to be modified.
-        if just_ctc:
-            encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
-            decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
-            return decoder_out_seg
-        else:
-            encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
-            decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
-            encoder_out_nmt = self.encoder_nmt(encoder_out_seg, src_lengths=seg_lengths, **kwargs)
-            decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
-            return decoder_out_seg, decoder_out_nmt
+        # if just_ctc:
+        #     encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
+        #     decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
+        #     return decoder_out_seg
+        #else:
+        encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
+        decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
+        encoder_out_nmt = self.encoder_nmt(encoder_out_seg, src_lengths=seg_lengths, **kwargs)
+        decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
+        return decoder_out_seg, decoder_out_nmt
 
     def forward_decoder_seg(self, prev_output_tokens_seg, **kwargs):
         return self.decoder_seg(prev_output_tokens_seg, **kwargs)
