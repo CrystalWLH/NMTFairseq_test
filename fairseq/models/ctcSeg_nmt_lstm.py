@@ -40,8 +40,8 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
         # fmt: off
         #parser.add_argument('--just-ctc', default=False, action='store_true',
         #                    help='ctc segmentation or ctc segmentation + nmt')
-        parser.add_argument('--ctc-weight', type=float, default=0, help='ctc weight for ctc loss')
-        parser.add_argument('--nmt-weight', type=float, default=1, help='nmt weight for nmt loss')
+        parser.add_argument('--ctc-weight', type=float, default=1, help='ctc weight for ctc loss')
+        parser.add_argument('--nmt-weight', type=float, default=0, help='nmt weight for nmt loss')
         parser.add_argument('--dropout', type=float, metavar='D',
                             help='dropout probability')
         parser.add_argument('--shared-encoder-embed-dim', type=int, metavar='N',
@@ -219,19 +219,14 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             bidirectional=args.shared_encoder_bidirectional,
             pretrained_embed=pretrained_shared_encoder_embed,
         )
-        nmt_encoder = LSTMEncoder(
-            dictionary=task.target_dictionary,
-            embed_dim=args.nmt_encoder_embed_dim,
+        nmt_encoder = NMTEncoder(
+            input_size=args.shared_encoder_hidden_size,
             hidden_size=args.nmt_encoder_hidden_size,
-            num_layers=args.nmt_encoder_layers,
-            dropout_in=args.nmt_encoder_dropout_in,
-            dropout_out=args.nmt_encoder_dropout_out,
-            bidirectional=args.nmt_encoder_bidirectional,
-            pretrained_embed=pretrained_shared_encoder_embed,
-        )
+            num_layers=args.nmt_encoder_layers
+            )
         ctc_decoder = CTCDecoder(
             encoder_output_units=args.shared_encoder_hidden_size,
-            out_dim=len(task.seg_dictionary),
+            out_dim=len(task.seg_dictionary) + 1,
             hidden_size=args.ctc_decoder_hidden_size,
             num_layers=args.ctc_decoder_layers,
             )
@@ -244,7 +239,7 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             dropout_in=args.nmt_decoder_dropout_in,
             dropout_out=args.nmt_decoder_dropout_out,
             attention=options.eval_bool(args.nmt_decoder_attention),
-            encoder_output_units=nmt_encoder.output_units,
+            encoder_output_units=nmt_encoder.hidden_size,
             pretrained_embed=pretrained_nmt_decoder_embed,
             share_input_output_embed=args.share_decoder_input_output_embed,
             adaptive_softmax_cutoff=(
@@ -252,7 +247,7 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
                 if args.criterion == 'adaptive_loss' else None
             ),
         )
-        return cls(shared_encoder, nmt_encoder, ctc_decoder, nmt_decoder)
+        return cls(shared_encoder, ctc_decoder, nmt_encoder, nmt_decoder)
 
 
 class LSTMEncoder(FairseqEncoder):
@@ -555,26 +550,30 @@ class LSTMDecoder(FairseqIncrementalDecoder):
 class NMTEncoder(nn.Module):
     def __init__(self, input_size=512, hidden_size=512, num_layers=1, bidirectional=False):
         super().__init__()
-        self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers, )
+        self.rnn = LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)
         self.bidirectional = bidirectional
         self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
 
     def forward(self, encoder_out):
+        btz = encoder_out['encoder_out'][0].shape[1]
         if self.bidirectional:
-            state_size = 2 * self.num_layers, self.input_size, self.hidden_size
+            state_size = 2 * self.num_layers, btz, self.hidden_size
         else:
-            state_size = self.num_layers, self.input_size, self.hidden_size
-        h0 = x.new_zeros(*state_size)
-        c0 = x.new_zeros(*state_size)
+            state_size = self.num_layers, btz, self.hidden_size
+        h0 = encoder_out['encoder_out'][0].new_zeros(*state_size)
+        c0 = encoder_out['encoder_out'][0].new_zeros(*state_size)
         rnn_out, (final_hiddens, final_cells) = self.rnn(encoder_out['encoder_out'][0], (h0, c0))
         if self.bidirectional:
             def combine_bidir(outs):
-                out = outs.view(self.num_layers, 2, self.input_size , -1).transpose(1, 2).contiguous()
-                return out.view(self.num_layers, self.input_size, -1)
+                out = outs.view(self.num_layers, 2, btz , -1).transpose(1, 2).contiguous()
+                return out.view(self.num_layers, btz, -1)
 
             final_hiddens = combine_bidir(final_hiddens)
             final_cells = combine_bidir(final_cells)
         encoder_out['encoder_out'] = (rnn_out, final_hiddens, final_cells)
+        return encoder_out
 
 
 
@@ -585,15 +584,18 @@ class CTCDecoder(nn.Module):
         self.bidirectional = bidirectional
         self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)
         self.fc_out = Linear(hidden_size, out_dim)
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
 
     def forward(self, encoder_out):
         encoder_out = encoder_out['encoder_out']
+        btz = encoder_out[0].shape[1]
         if self.bidirectional:
-            state_size = 2 * self.num_layers, self.encoder_output_units, self.hidden_size
+            state_size = 2 * self.num_layers, btz, self.hidden_size
         else:
-            state_size = self.num_layers, self.encoder_output_units, self.hidden_size
-        h0 = x.new_zeros(*state_size)
-        c0 = x.new_zeros(*state_size)
+            state_size = self.num_layers, btz, self.hidden_size
+        h0 = encoder_out[0].new_zeros(*state_size)
+        c0 = encoder_out[0].new_zeros(*state_size)
         rnn_out, _ = self.rnn(encoder_out[0], (h0, c0))
         fc_out = self.fc_out(rnn_out)
         out = fc_out.log_softmax(2).detach().requires_grad_()

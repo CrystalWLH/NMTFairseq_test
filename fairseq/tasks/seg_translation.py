@@ -33,7 +33,6 @@ def load_langpair_dataset(
     def split_exists(split, src, seg, tgt, lang, data_path):
         filename = os.path.join(data_path, '{}.{}-{}-{}.{}'.format(split, src, seg, tgt, lang))
         return indexed_dataset.dataset_exists(filename, impl=dataset_impl)
-
     src_datasets = []
     seg_datasets = []
     tgt_datasets = []
@@ -92,7 +91,8 @@ def load_langpair_dataset(
 
     return LanguageTraidDataset(
         src_dataset, src_dataset.sizes, src_dict,
-        tgt_dataset, tgt_dataset.sizes, tgt_dict,
+        seg=seg_dataset, seg_sizes=seg_dataset.sizes, seg_dict=seg_dict,
+        tgt=tgt_dataset, tgt_sizes=tgt_dataset.sizes, tgt_dict=tgt_dict,
         left_pad_source=left_pad_source,
         left_pad_target=left_pad_target,
         max_source_positions=max_source_positions,
@@ -214,6 +214,7 @@ class SegTranslationTask(FairseqTask):
         paths = self.args.data.split(':')
         assert len(paths) > 0
         data_path = paths[epoch % len(paths)]
+
 
         # infer langcode
         src, seg, tgt = self.args.source_lang, self.args.seg_lang, self.args.target_lang

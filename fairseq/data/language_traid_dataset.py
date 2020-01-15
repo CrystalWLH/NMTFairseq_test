@@ -61,6 +61,7 @@ def collate_traid(
     seg = None
     prev_output_tokens_seg = None
 
+
     if samples[0].get('target', None) is not None and samples[0].get('segmentation', None) is not None:
         target = merge('target', left_pad=left_pad_target)
         target = target.index_select(0, sort_order)

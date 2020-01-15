@@ -7,6 +7,7 @@
 
 import math
 import torch.nn.functional as F
+import torch
 
 from fairseq import utils
 
@@ -46,7 +47,8 @@ class CtcNmtCriterion(FairseqCriterion):
         #else:
         ctc_out, nmt_out = model(**sample['net_input'])
         ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
-        nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduct=reduce)
+        nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduce=reduce)
+        print ('ctc_loss' + str(ctc_loss))
         sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
         logging_output = {
             'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
@@ -61,9 +63,9 @@ class CtcNmtCriterion(FairseqCriterion):
         return loss , sample_size, logging_output
 
     def compute_nmt_loss(self, model, nmt_output, sample, reduce=True):
-        lprobs = model.get_normalized_probs(nmt_output, log_probs=True)
+        lprobs = model.get_normalized_probs(nmt_output[0], log_probs=True)
         lprobs = lprobs.view(-1, lprobs.size(-1))
-        _, nmt_target = model.get_targets(sample, nmt_output).view(-1)
+        nmt_target = model.get_targets(sample, nmt_output).view(-1)
         loss = F.nll_loss(
             lprobs,
             nmt_target,
@@ -72,9 +74,9 @@ class CtcNmtCriterion(FairseqCriterion):
         )
         return loss, loss
 
-    def compute_ctc_loss(self, model, ctc_output, sample, reduct=True):
+    def compute_ctc_loss(self, model, ctc_output, sample, reduce=True):
         ctc_loss = torch.nn.CTCLoss(blank=len(self.task.seg_dict), reduction='mean')
-        seg_target, _ = model.get_targets(sample, num_output).view(-1)
+        seg_target = model.get_seg(sample)
         src_len = sample['net_input']['src_lengths']
         seg_len = sample['net_input']['segmentation_lengths']
         loss = ctc_loss(ctc_output, seg_target, src_len, seg_len)

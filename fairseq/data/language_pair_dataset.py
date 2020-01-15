@@ -54,6 +54,10 @@ def collate(
 
     prev_output_tokens = None
     target = None
+
+    from fairseq import pdb
+    pdb.set_trace()
+
     if samples[0].get('target', None) is not None:
         target = merge('target', left_pad=left_pad_target)
         target = target.index_select(0, sort_order)
@@ -182,6 +186,8 @@ class LanguagePairDataset(FairseqDataset):
         self.append_bos = append_bos
 
     def __getitem__(self, index):
+        from fairseq import pdb
+        pdb.set_trace()
         tgt_item = self.tgt[index] if self.tgt is not None else None
         src_item = self.src[index]
         # Append EOS to end of tgt sentence if it does not have an EOS and remove

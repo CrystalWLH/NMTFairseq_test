@@ -470,7 +470,7 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         # assert isinstance(self.encoder_nmt, FairseqEncoder)
         # assert isinstance(self.decoder_nmt, FairseqDecoder)
 
-    def forward(self, src_tokens, src_lengths, seg_lengths, prev_output_tokens, prev_output_tokens_seg, **kwargs):
+    def forward(self, src_tokens, src_lengths, segmentation_lengths, prev_output_tokens, prev_output_tokens_seg,  **kwargs):
         """
         Run the forward pass for segmentation + NMT based encoder-decoder model.
 
@@ -506,8 +506,8 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         #     return decoder_out_seg
         #else:
         encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
-        decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
-        encoder_out_nmt = self.encoder_nmt(encoder_out_shared, src_lengths=seg_lengths, **kwargs)
+        decoder_out_seg = self.decoder_seg(encoder_out_shared, **kwargs)
+        encoder_out_nmt = self.encoder_nmt(encoder_out_shared, **kwargs)
         decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
         return decoder_out_seg, decoder_out_nmt
 
@@ -548,4 +548,6 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
     def max_decoder_positions_nmt(self):
         """Maximum length supported by the decoder."""
         return self.decoder_nmt.max_positions()
+    def get_seg(self, sample):
+        return sample['segmentation_tokens']
 
