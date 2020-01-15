@@ -227,7 +227,7 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             dropout_in=args.nmt_encoder_dropout_in,
             dropout_out=args.nmt_encoder_dropout_out,
             bidirectional=args.nmt_encoder_bidirectional,
-            pretrained_embed=pretrained_nmt_encoder_embed,
+            pretrained_embed=pretrained_shared_encoder_embed,
         )
         ctc_decoder = CTCDecoder(
             encoder_output_units=args.shared_encoder_hidden_size,
@@ -552,16 +552,49 @@ class LSTMDecoder(FairseqIncrementalDecoder):
     def make_generation_fast_(self, need_attn=False, **kwargs):
         self.need_attn = need_attn
 
+class NMTEncoder(nn.Module):
+    def __init__(self, input_size=512, hidden_size=512, num_layers=1, bidirectional=False):
+        super().__init__()
+        self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers, )
+        self.bidirectional = bidirectional
+        self.input_size = input_size
+
+    def forward(self, encoder_out):
+        if self.bidirectional:
+            state_size = 2 * self.num_layers, self.input_size, self.hidden_size
+        else:
+            state_size = self.num_layers, self.input_size, self.hidden_size
+        h0 = x.new_zeros(*state_size)
+        c0 = x.new_zeros(*state_size)
+        rnn_out, (final_hiddens, final_cells) = self.rnn(encoder_out['encoder_out'][0], (h0, c0))
+        if self.bidirectional:
+            def combine_bidir(outs):
+                out = outs.view(self.num_layers, 2, self.input_size , -1).transpose(1, 2).contiguous()
+                return out.view(self.num_layers, self.input_size, -1)
+
+            final_hiddens = combine_bidir(final_hiddens)
+            final_cells = combine_bidir(final_cells)
+        encoder_out['encoder_out'] = (rnn_out, final_hiddens, final_cells)
+
+
+
 class CTCDecoder(nn.Module):
-    def __init__(self, encoder_output_units=512, out_dim=512, hidden_size=512, num_layers=1):
+    def __init__(self, encoder_output_units=512, out_dim=512, hidden_size=512, num_layers=1, bidirectional=False):
         super().__init__()
         self.encoder_output_units = encoder_output_units
-        self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers)
+        self.bidirectional = bidirectional
+        self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)
         self.fc_out = Linear(hidden_size, out_dim)
 
     def forward(self, encoder_out):
         encoder_out = encoder_out['encoder_out']
-        rnn_out = self.rnn(encoder_out)
+        if self.bidirectional:
+            state_size = 2 * self.num_layers, self.encoder_output_units, self.hidden_size
+        else:
+            state_size = self.num_layers, self.encoder_output_units, self.hidden_size
+        h0 = x.new_zeros(*state_size)
+        c0 = x.new_zeros(*state_size)
+        rnn_out, _ = self.rnn(encoder_out[0], (h0, c0))
         fc_out = self.fc_out(rnn_out)
         out = fc_out.log_softmax(2).detach().requires_grad_()
         return out

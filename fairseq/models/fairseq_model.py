@@ -458,7 +458,7 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         decoder_nmt (FairseqDecoder): the decoder of NMT
     """
 
-    def __init__(self, encoder_seg, decoder_seg, encoder_nmt, decoder_nmt):
+    def __init__(self, encoder_shared, decoder_seg, encoder_nmt, decoder_nmt):
         super().__init__()
 
         self.encoder_shared = encoder_shared
@@ -507,7 +507,7 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         #else:
         encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
         decoder_out_seg = self.decoder_seg(prev_output_tokens_seg, encoder_out=encoder_out_shared, **kwargs)
-        encoder_out_nmt = self.encoder_nmt(encoder_out_seg, src_lengths=seg_lengths, **kwargs)
+        encoder_out_nmt = self.encoder_nmt(encoder_out_shared, src_lengths=seg_lengths, **kwargs)
         decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
         return decoder_out_seg, decoder_out_nmt
 
