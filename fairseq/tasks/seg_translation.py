@@ -156,6 +156,7 @@ class SegTranslationTask(FairseqTask):
                             help='max number of tokens in the target sequence')
         parser.add_argument('--upsample-primary', default=1, type=int,
                             help='amount to upsample primary dataset')
+
         # fmt: on
 
     def __init__(self, args, src_dict, seg_dict, tgt_dict):
@@ -184,9 +185,11 @@ class SegTranslationTask(FairseqTask):
         paths = args.data.split(':')
         assert len(paths) > 0
         # find language pair automatically
-        if args.source_lang is None or args.seg_lang or args.target_lang is None:
-            args.source_lang, args.seg_lang, args.target_lang = data_utils.infer_language_pair(paths[0])
-        if args.source_lang is None or args.seg_lang or args.target_lang is None:
+        #if args.source_lang is None or args.seg_lang or args.target_lang is None:
+        #    args.source_lang, args.seg_lang, args.target_lang = data_utils.infer_language_pair(paths[0])
+
+        # Must give source_lang seg_lang target_lang mannuly
+        if args.source_lang is None or args.seg_lang is None or args.target_lang is None:
             raise Exception('Could not infer language pair, please provide it explicitly')
 
         # load dictionaries

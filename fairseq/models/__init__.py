@@ -17,6 +17,7 @@ from .fairseq_model import (
     FairseqLanguageModel,
     FairseqModel,
     FairseqMultiModel,
+    FairseqEncoderDecoderDoubleModel,
 )
 
 from .composite_encoder import CompositeEncoder

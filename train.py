@@ -39,6 +39,7 @@ def main(args, init_distributed=False):
 
     # Print args
     print(args)
+    pdb.set_trace()
     # Setup task, e.g., translation, language modeling, etc.
     task = tasks.setup_task(args)
 
@@ -77,7 +78,6 @@ def main(args, init_distributed=False):
     valid_subsets = args.valid_subset.split(',')
     while lr > args.min_lr and epoch_itr.epoch < max_epoch and trainer.get_num_updates() < max_update:
         # train for one epoch
-        pdb.set_trace()
         train(args, trainer, task, epoch_itr)
 
         if not args.disable_validation and epoch_itr.epoch % args.validate_interval == 0:

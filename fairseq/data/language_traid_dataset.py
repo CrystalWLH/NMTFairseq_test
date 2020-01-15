@@ -116,7 +116,7 @@ def collate_traid(
             'src_tokens': src_tokens,
             'src_lengths': src_lengths,
             'segmentation_lengths': seg_lengths,
-        }
+        }, 
         'segmentation_tokens': seg,
         'target': target,
     }
