@@ -90,6 +90,10 @@ def collate_traid(
     else:
         ntokens = sum(len(s['source']) for s in samples)
         ntokens_seg = sum(len(s['source']) for s in samples)
+        seg = merge('segmentation', left_pad=left_pad_seg)
+        seg = seg.index_select(0, sort_order)
+        seg_lengths = torch.LongTensor([s['segmentation'].numel() for s in samples]).index_select(0, sort_order)
+        ntokens_seg = sum(len(s['segmentation']) for s in samples)
 
 
     '''batch = {
@@ -282,7 +286,7 @@ class LanguageTraidDataset(FairseqDataset):
         example = {
             'id': index,
             'source': src_item,
-            'segementation': seg_item,
+            'segmentation': seg_item,
             'target': tgt_item,
         }
         if self.align_dataset is not None:
