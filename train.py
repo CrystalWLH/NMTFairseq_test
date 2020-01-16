@@ -18,7 +18,6 @@ from fairseq import checkpoint_utils, distributed_utils, options, progress_bar, 
 from fairseq.data import iterators
 from fairseq.trainer import Trainer
 from fairseq.meters import AverageMeter, StopwatchMeter
-import pdb
 
 def main(args, init_distributed=False):
     utils.import_user_module(args)
@@ -47,7 +46,6 @@ def main(args, init_distributed=False):
         task.load_dataset(valid_sub_split, combine=False, epoch=0)
 
     # Build model and criterion
-    pdb.set_trace()
     model = task.build_model(args)
     criterion = task.build_criterion(args)
     print(model)
@@ -118,6 +116,7 @@ def train(args, trainer, task, epoch_itr):
     extra_meters = collections.defaultdict(lambda: AverageMeter())
     valid_subsets = args.valid_subset.split(',')
     max_update = args.max_update or math.inf
+    
     for i, samples in enumerate(progress, start=epoch_itr.iterations_in_epoch):
         log_output = trainer.train_step(samples)
         if log_output is None:

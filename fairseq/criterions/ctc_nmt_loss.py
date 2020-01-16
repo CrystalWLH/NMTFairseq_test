@@ -48,7 +48,6 @@ class CtcNmtCriterion(FairseqCriterion):
         ctc_out, nmt_out = model(**sample['net_input'])
         ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
         nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduce=reduce)
-        print ('ctc_loss' + str(ctc_loss))
         sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
         logging_output = {
             'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
@@ -80,6 +79,8 @@ class CtcNmtCriterion(FairseqCriterion):
         src_len = sample['net_input']['src_lengths']
         seg_len = sample['net_input']['segmentation_lengths']
         filted_index = torch.where(src_len > seg_len)[0]
+        if filted_index.shape[0] == 0:
+            return ctc_output.new_zeros([1]), ctc_output.new_zeros([1])
         ctc_output = ctc_output[:, filted_index, :]
         seg_target = seg_target[filted_index, :]
         src_len = src_len[filted_index]
