@@ -598,7 +598,8 @@ class CTCDecoder(nn.Module):
         c0 = encoder_out[0].new_zeros(*state_size)
         rnn_out, _ = self.rnn(encoder_out[0], (h0, c0))
         fc_out = self.fc_out(rnn_out)
-        out = fc_out.log_softmax(2).detach().requires_grad_()
+        #out = fc_out.log_softmax(2).detach().requires_grad_()
+        out = fc_out.log_softmax(2)
         return out
 
 

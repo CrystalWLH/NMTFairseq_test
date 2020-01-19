@@ -5,7 +5,7 @@
 
 
 #train transformer model
-CUDA_VISIBLE_DEVICES=0 python train.py mydata/data-bin/nmt_seg_bin --source-lang ti --target-lang zh --seg-lang seg --task seg_translation --arch seg_nmt_ctc_lstm --save-dir checkpoints/test --log-interval 300 --no-progress-bar --no-epoch-checkpoints --log-format simple --share-decoder-input-output-embed --optimizer adam --adam-betas '(0.9,0.98)' --clip-norm 0.0 --lr 1e-4  --criterion ctc_nmt_loss --max-tokens 4096
+CUDA_VISIBLE_DEVICES=0 python train.py mydata/data-bin/nmt_seg_bin --source-lang ti --target-lang zh --seg-lang seg --task seg_translation --arch seg_nmt_ctc_lstm --save-dir checkpoints/test --log-interval 300 --no-progress-bar --no-epoch-checkpoints --log-format simple --share-decoder-input-output-embed --optimizer adam --adam-betas '(0.9,0.98)' --clip-norm 0.0 --lr 5e-4  --criterion ctc_nmt_loss --max-tokens 4096
 
 
 #evaluate experiment model

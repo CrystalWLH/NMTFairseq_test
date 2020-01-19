@@ -74,7 +74,7 @@ class CtcNmtCriterion(FairseqCriterion):
         return loss, loss
 
     def compute_ctc_loss(self, model, ctc_output, sample, reduce=True):
-        ctc_loss = torch.nn.CTCLoss(blank=len(self.task.seg_dict), reduction='mean')
+        ctc_loss = torch.nn.CTCLoss(blank=len(self.task.seg_dict), reduction='sum')
         seg_target = model.get_seg(sample)
         src_len = sample['net_input']['src_lengths']
         seg_len = sample['net_input']['segmentation_lengths']
@@ -86,7 +86,7 @@ class CtcNmtCriterion(FairseqCriterion):
         src_len = src_len[filted_index]
         seg_len = seg_len[filted_index] 
         loss = ctc_loss(ctc_output, seg_target, src_len, seg_len)
-        if loss > 1000:
+        if loss > 1000000:
             return loss.new_zeros(loss.shape), loss.new_zeros(loss.shape)
         return loss, loss
 

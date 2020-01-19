@@ -3,6 +3,7 @@
 
 # model
 checkpoints/
+mydata/
 
 # JetBrains PyCharm IDE
 .idea/

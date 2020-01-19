@@ -151,6 +151,7 @@ def train(args, trainer, task, epoch_itr):
         if num_updates >= max_update:
             break
 
+
     # log end-of-epoch stats
     stats = get_training_stats(trainer)
     for k, meter in extra_meters.items():
