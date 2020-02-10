@@ -516,6 +516,9 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
     def forward_decoder_nmt(self, prev_output_tokens, **kwargs):
         return self.decoder_nmt(prev_output_tokens, **kwargs)
 
+    def forward_decoder(self, prev_output_tokens, **kwargs):
+        return self.decoder_nmt(prev_output_tokens, **kwargs)
+
     def extract_features(self, src_tokens, src_lengths, seg_lengths, prev_output_tokens, prev_output_tokens_seg, **kwargs):
         """
         Similar to *forward* but only return features.
@@ -547,6 +550,8 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         return self.decoder_seg.max_positions()
     def max_decoder_positions_nmt(self):
         """Maximum length supported by the decoder."""
+        return self.decoder_nmt.max_positions()
+    def max_decoder_positions(self):
         return self.decoder_nmt.max_positions()
     def get_seg(self, sample):
         return sample['segmentation_tokens']
