@@ -66,8 +66,12 @@ class Trainer(object):
 
     def init_meters(self, args):
         self.meters = OrderedDict()
+        self.meters['train_ctc_loss'] = AverageMeter()
+        self.meters['train_nmt_loss'] = AverageMeter()
         self.meters['train_loss'] = AverageMeter()
         self.meters['train_nll_loss'] = AverageMeter()
+        self.meters['valid_ctc_loss'] = AverageMeter()
+        self.meters['valid_nmt_loss'] = AverageMeter()
         self.meters['valid_loss'] = AverageMeter()
         self.meters['valid_nll_loss'] = AverageMeter()
         self.meters['wps'] = TimeMeter()       # words per second
@@ -436,6 +440,8 @@ class Trainer(object):
             self.meters['clip'].update(
                 1. if grad_norm > self.args.clip_norm and self.args.clip_norm > 0 else 0.
             )
+            self.meters['train_ctc_loss'].update(logging_output.get('ctc_loss', 0), sample_size)
+            self.meters['train_nmt_loss'].update(logging_output.get('nmt_loss', 0), sample_size)
             self.meters['train_loss'].update(logging_output.get('loss', 0), sample_size)
             if 'train_acc' in self.meters:
                 self.meters['train_acc'].update(
@@ -518,6 +524,8 @@ class Trainer(object):
 
         # update meters for validation
         ntokens = logging_output.get('ntokens', 0)
+        self.meters['valid_ctc_loss'].update(logging_output.get('ctc_loss', 0), sample_size)
+        self.meters['valid_nmt_loss'].update(logging_output.get('nmt_loss', 0), sample_size)
         self.meters['valid_loss'].update(logging_output.get('loss', 0), sample_size)
         if 'valid_acc' in self.meters:
             self.meters['valid_acc'].update(

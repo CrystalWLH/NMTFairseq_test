@@ -49,16 +49,17 @@ class CtcNmtCriterion(FairseqCriterion):
         ctc_loss, _ = self.compute_ctc_loss(model, ctc_out, sample, reduce=reduce)
         nmt_loss, _ = self.compute_nmt_loss(model, nmt_out, sample, reduce=reduce)
         sample_size = sample['target'].size(0) if self.args.sentence_avg else sample['ntokens']
+        loss = ctc_loss * self._ctc_weight + nmt_loss * self._nmt_weight
+
         logging_output = {
             'ctc_loss': utils.item(ctc_loss.data) if reduce else ctc_loss.data,
             'nmt_loss': utils.item(nmt_loss.data) if reduce else nmt_loss.data,
+            'loss': utils.item(loss.data) if reduce else loss.data,
             'nll_loss': utils.item(nmt_loss.data) if reduce else nmt_loss.data,
             'ntokens': sample['ntokens'],
             'nsentences': sample['target'].size(0),
             'sample_size': sample_size,
         }
-        #TODO: all loss = ctcloss * alpla + nmtloss * beta
-        loss = ctc_loss * self._ctc_weight + nmt_loss * self._nmt_weight
         return loss , sample_size, logging_output
 
     def compute_nmt_loss(self, model, nmt_output, sample, reduce=True):
@@ -96,12 +97,14 @@ class CtcNmtCriterion(FairseqCriterion):
         """Aggregate logging outputs from data parallel training."""
         ctc_loss_sum = sum(log.get('ctc_loss', 0) for log in logging_outputs)
         nmt_loss_sum = sum(log.get('nmt_loss', 0) for log in logging_outputs)
+        loss_sum = sum(log.get('loss', 0) for log in logging_outputs)
         ntokens = sum(log.get('ntokens', 0) for log in logging_outputs)
         nsentences = sum(log.get('nsentences', 0) for log in logging_outputs)
         sample_size = sum(log.get('sample_size', 0) for log in logging_outputs)
         agg_output = {
             'ctc_loss': ctc_loss_sum / sample_size / math.log(2) if sample_size > 0 else 0.,
             'nmt_loss': nmt_loss_sum / sample_size / math.log(2) if sample_size > 0 else 0.,
+            'loss': loss_sum / sample_size / math.log(2) if sample_size > 0 else 0.,
             'ntokens': ntokens,
             'nsentences': nsentences,
             'sample_size': sample_size,

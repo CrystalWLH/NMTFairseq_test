@@ -121,11 +121,10 @@ def train(args, trainer, task, epoch_itr):
         log_output = trainer.train_step(samples)
         if log_output is None:
             continue
-
         # log mid-epoch stats
         stats = get_training_stats(trainer)
         for k, v in log_output.items():
-            if k in ['loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
+            if k in ['ctc_loss', 'nmt_loss', 'loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
                 continue  # these are already logged above
             if 'loss' in k or k == 'accuracy':
                 extra_meters[k].update(v, log_output['sample_size'])
@@ -157,10 +156,9 @@ def train(args, trainer, task, epoch_itr):
     for k, meter in extra_meters.items():
         stats[k] = meter.avg
     progress.print(stats, tag='train', step=stats['num_updates'])
-
     # reset training meters
     for k in [
-        'train_loss', 'train_nll_loss', 'wps', 'ups', 'wpb', 'bsz', 'gnorm', 'clip',
+        'train_ctc_loss', 'train_nmt_loss', 'train_loss', 'train_nll_loss', 'wps', 'ups', 'wpb', 'bsz', 'gnorm', 'clip',
     ]:
         meter = trainer.get_meter(k)
         if meter is not None:
@@ -169,12 +167,14 @@ def train(args, trainer, task, epoch_itr):
 
 def get_training_stats(trainer):
     stats = collections.OrderedDict()
+    stats['ctc_loss'] = trainer.get_meter('train_ctc_loss')
+    stats['nmt_loss'] = trainer.get_meter('train_nmt_loss')
     stats['loss'] = trainer.get_meter('train_loss')
     if trainer.get_meter('train_nll_loss').count > 0:
         nll_loss = trainer.get_meter('train_nll_loss')
         stats['nll_loss'] = nll_loss
     else:
-        nll_loss = trainer.get_meter('train_loss')
+        nll_loss = trainer.get_meter('train_nmt_loss')
     stats['ppl'] = utils.get_perplexity(nll_loss.avg)
     stats['wps'] = trainer.get_meter('wps')
     stats['ups'] = trainer.get_meter('ups')
@@ -219,7 +219,7 @@ def validate(args, trainer, task, epoch_itr, subsets):
         )
 
         # reset validation loss meters
-        for k in ['valid_loss', 'valid_nll_loss']:
+        for k in ['valid_ctc_loss', 'valid_nmt_loss', 'valid_loss', 'valid_nll_loss']:
             meter = trainer.get_meter(k)
             if meter is not None:
                 meter.reset()
@@ -229,7 +229,7 @@ def validate(args, trainer, task, epoch_itr, subsets):
             log_output = trainer.valid_step(sample)
 
             for k, v in log_output.items():
-                if k in ['loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
+                if k in ['ctc_loss', 'nmt_loss', 'loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
                     continue
                 extra_meters[k].update(v)
 
@@ -249,12 +249,14 @@ def validate(args, trainer, task, epoch_itr, subsets):
 
 def get_valid_stats(trainer, args, extra_meters=None):
     stats = collections.OrderedDict()
+    stats['ctc_loss'] = trainer.get_meter('valid_ctc_loss')
+    stats['nmt_loss'] = trainer.get_meter('valid_nmt_loss')
     stats['loss'] = trainer.get_meter('valid_loss')
     if trainer.get_meter('valid_nll_loss').count > 0:
         nll_loss = trainer.get_meter('valid_nll_loss')
         stats['nll_loss'] = nll_loss
     else:
-        nll_loss = stats['loss']
+        nll_loss = stats['nmt_loss']
     stats['ppl'] = utils.get_perplexity(nll_loss.avg)
     stats['num_updates'] = trainer.get_num_updates()
     if hasattr(checkpoint_utils.save_checkpoint, 'best'):
