@@ -224,12 +224,17 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             hidden_size=args.nmt_encoder_hidden_size,
             num_layers=args.nmt_encoder_layers
             )
+        if args.shared_encoder_bidirectional:
+            ctc_hidden_size = args.shared_encoder_hidden_size * 2
+        else:
+            ctc_hidden_size = args.shared_encoder_hidden_size
         ctc_decoder = CTCDecoder(
-            encoder_output_units=args.shared_encoder_hidden_size,
+            encoder_output_units=ctc_hidden_size,
             out_dim=len(task.seg_dictionary) + 1,
             hidden_size=args.ctc_decoder_hidden_size,
             num_layers=args.ctc_decoder_layers,
             )
+        #TODO: nmt decoder encoder_output_units should be related to bidirectional 
         nmt_decoder = LSTMDecoder(
             dictionary=task.target_dictionary,
             embed_dim=args.nmt_decoder_embed_dim,
@@ -557,6 +562,8 @@ class NMTEncoder(nn.Module):
         self.num_layers = num_layers
 
     def forward(self, encoder_out):
+        from fairseq import pdb
+        pdb.set_trace()
         btz = encoder_out['encoder_out'][0].shape[1]
         if self.bidirectional:
             state_size = 2 * self.num_layers, btz, self.hidden_size
@@ -684,32 +691,33 @@ def base_architecture(args):
 @register_model_architecture('seg_nmt_ctc_lstm', 'my_ctc_nmt_lstm')
 def my_ctc_nmt_lstm(args):
     #args.just_ctc = getattr(args, 'just_ctc', args.just_ctc)
-    args.dropout = getattr(args, 'dropout', 0.1)
-    args.shared_encoder_embed_dim = getattr(args, 'shared_encoder_embed_dim', args.shared_encoder_embed_dim)
-    args.shared_encoder_hidden_size = getattr(args, 'shared_encoder_hidden_size', args.shared_encoder_hidden_size)
-    args.shared_encoder_layers = getattr(args, 'shared_encoder_layers', args.shared_encoder_layers)
+    args.dropout = getattr(args, 'dropout', 0.3)
+    args.shared_encoder_embed_dim = getattr(args, 'shared_encoder_embed_dim', 512)
+    args.shared_encoder_hidden_size = getattr(args, 'shared_encoder_hidden_size', 512)
+    args.shared_encoder_layers = getattr(args, 'shared_encoder_layers', 1)
     args.shared_encoder_dropout_in = getattr(args, 'shared_encoder_dropout_in', 0)
-    args.shared_encoder_dropout_out = getattr(args, 'shared_encoder_dropout_out', 0)
+    args.shared_encoder_dropout_out = getattr(args, 'shared_encoder_dropout_out', 0.3)
 
-    args.nmt_encoder_embed_dim = getattr(args, 'nmt_encoder_embed_dim', args.nmt_encoder_embed_dim)
-    args.nmt_encoder_hidden_size = getattr(args, 'nmt_encoder_hidden_size', args.nmt_encoder_hidden_size)
-    args.nmt_encoder_layers = getattr(args, 'nmt_encoder_layers', args.nmt_encoder_layers)
+    args.nmt_encoder_embed_dim = getattr(args, 'nmt_encoder_embed_dim', 512)
+    args.nmt_encoder_hidden_size = getattr(args, 'nmt_encoder_hidden_size', 512)
+    args.nmt_encoder_layers = getattr(args, 'nmt_encoder_layers', 1)
     args.nmt_encoder_dropout_in = getattr(args, 'nmt_encoder_dropout_in', 0)
-    args.nmt_encoder_dropout_out = getattr(args, 'nmt_encoder_dropout_out', 0)
+    args.nmt_encoder_dropout_out = getattr(args, 'nmt_encoder_dropout_out', 0.3)
 
-    args.ctc_decoder_embed_dim = getattr(args, 'ctc_decoder_embed_dim', args.ctc_decoder_embed_dim)
-    args.ctc_decoder_out_embed_dim = getattr(args, 'ctc_decoder_out_embed_dim', args.ctc_decoder_out_embed_dim)
-    args.ctc_decoder_hidden_size = getattr(args, 'ctc_decoder_hidden_size', args.ctc_decoder_hidden_size)
-    args.ctc_decoder_layers = getattr(args, 'ctc_decoder_layers', args.ctc_decoder_layers)
+    args.ctc_decoder_embed_dim = getattr(args, 'ctc_decoder_embed_dim', 512)
+    args.ctc_decoder_out_embed_dim = getattr(args, 'ctc_decoder_out_embed_dim', 512)
+    args.ctc_decoder_hidden_size = getattr(args, 'ctc_decoder_hidden_size', 512)
+    args.ctc_decoder_layers = getattr(args, 'ctc_decoder_layers', 1)
     args.ctc_decoder_dropout_in = getattr(args, 'ctc_decoder_dropout_in', 0)
-    args.ctc_decoder_dropout_out = getattr(args, 'ctc_decoder_dropout_out', args.dropout)
+    args.ctc_decoder_dropout_out = getattr(args, 'ctc_decoder_dropout_out', 0.3)
 
-    args.nmt_decoder_embed_dim = getattr(args, 'nmt_decoder_embed_dim', args.nmt_decoder_embed_dim)
-    args.nmt_decoder_out_embed_dim = getattr(args, 'nmt_decoder_out_embed_dim', args.nmt_decoder_out_embed_dim)
-    args.nmt_decoder_hidden_size = getattr(args, 'nmt_decoder_hidden_size', args.nmt_decoder_hidden_size)
-    args.nmt_decoder_layers = getattr(args, 'nmt_decoder_layers', args.nmt_decoder_layers)
+    args.nmt_decoder_embed_dim = getattr(args, 'nmt_decoder_embed_dim', 512)
+    args.nmt_decoder_out_embed_dim = getattr(args, 'nmt_decoder_out_embed_dim', 512)
+    args.nmt_decoder_hidden_size = getattr(args, 'nmt_decoder_hidden_size', 512)
+    args.nmt_decoder_layers = getattr(args, 'nmt_decoder_layers', 1)
     args.nmt_decoder_dropout_in = getattr(args, 'nmt_decoder_dropout_in', 0)
-    args.nmt_decoder_dropout_out = getattr(args, 'nmt_decoder_dropout_out', args.dropout)
-
+    args.nmt_decoder_dropout_out = getattr(args, 'nmt_decoder_dropout_out', 0.3)
+    args.shared_encoder_bidirectional = getattr(args, 'shared_encoder_bidirectional', True)
+    args.share_decoder_input_output_embed = getattr(args, 'share_decoder_input_output_embed', True)
     base_architecture(args)
 
