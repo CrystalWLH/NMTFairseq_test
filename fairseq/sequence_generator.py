@@ -1135,9 +1135,9 @@ class EnsembleCTCModel(torch.nn.Module):
     def forward_encoder(self, encoder_input):
         model = self.models[0]
         encoder_shared_out = model.encoder_shared(**encoder_input)
-        #encoder_nmt_out = model.encoder_nmt(encoder_shared_out)
-        #return [encoder_nmt_out]
-        return [encoder_shared_out]
+        encoder_nmt_out = model.encoder_nmt(encoder_shared_out)
+        return [encoder_nmt_out]
+        #return [encoder_shared_out]
 
     @torch.no_grad()
     def forward_decoder(self, tokens, encoder_outs, temperature=1.):

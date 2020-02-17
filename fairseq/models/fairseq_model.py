@@ -507,9 +507,8 @@ class FairseqEncoderDecoderDoubleModel(BaseFairseqModel):
         #else:
         encoder_out_shared = self.encoder_shared(src_tokens, src_lengths=src_lengths, **kwargs)
         decoder_out_seg = self.decoder_seg(encoder_out_shared, **kwargs)
-        #encoder_out_nmt = self.encoder_nmt(encoder_out_shared, **kwargs)
-        #decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
-        decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_shared, **kwargs)
+        encoder_out_nmt = self.encoder_nmt(encoder_out_shared, **kwargs)
+        decoder_out_nmt = self.decoder_nmt(prev_output_tokens, encoder_out=encoder_out_nmt, **kwargs)
         return decoder_out_seg, decoder_out_nmt
 
     def forward_decoder_seg(self, prev_output_tokens_seg, **kwargs):

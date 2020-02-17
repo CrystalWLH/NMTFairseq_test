@@ -567,8 +567,6 @@ class NMTEncoder(nn.Module):
         self.num_layers = num_layers
 
     def forward(self, encoder_out):
-        from fairseq import pdb
-        pdb.set_trace()
         btz = encoder_out['encoder_out'][0].shape[1]
         if self.bidirectional:
             state_size = 2 * self.num_layers, btz, self.hidden_size
@@ -590,12 +588,15 @@ class NMTEncoder(nn.Module):
 
 
 class CTCDecoder(nn.Module):
-    def __init__(self, encoder_output_units=512, out_dim=512, hidden_size=512, num_layers=1, bidirectional=False):
+    def __init__(self, encoder_output_units=512, out_dim=512, hidden_size=512, num_layers=1, bidirectional=True):
         super().__init__()
         self.encoder_output_units = encoder_output_units
         self.bidirectional = bidirectional
         self.rnn = LSTM(input_size=encoder_output_units, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)
-        self.fc_out = Linear(hidden_size, out_dim)
+        if bidirectional:
+            self.fc_out = Linear(2 * hidden_size, out_dim)
+        else:
+            self.fc_out = Linear(hidden_size, out_dim)
         self.num_layers = num_layers
         self.hidden_size = hidden_size
 
