@@ -240,6 +240,10 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             num_layers=args.ctc_decoder_layers,
             )
         #TODO: nmt decoder encoder_output_units should be related to bidirectional 
+        if nmt_encoder.bidirectional:
+            decoder_input_size = 2 * nmt_encoder.hidden_size
+        else:
+            decoder_input_size = nmt_encoder.hidden_size
         nmt_decoder = LSTMDecoder(
             dictionary=task.target_dictionary,
             embed_dim=args.nmt_decoder_embed_dim,
@@ -249,7 +253,7 @@ class SegNmtCtcLSTMModel(FairseqEncoderDecoderDoubleModel):
             dropout_in=args.nmt_decoder_dropout_in,
             dropout_out=args.nmt_decoder_dropout_out,
             attention=options.eval_bool(args.nmt_decoder_attention),
-            encoder_output_units=nmt_encoder.hidden_size,
+            encoder_output_units=decoder_input_size,
             pretrained_embed=pretrained_nmt_decoder_embed,
             share_input_output_embed=args.share_decoder_input_output_embed,
             adaptive_softmax_cutoff=(
@@ -558,7 +562,7 @@ class LSTMDecoder(FairseqIncrementalDecoder):
         self.need_attn = need_attn
 
 class NMTEncoder(nn.Module):
-    def __init__(self, input_size=512, hidden_size=512, num_layers=1, bidirectional=False):
+    def __init__(self, input_size=512, hidden_size=512, num_layers=1, bidirectional=True):
         super().__init__()
         self.rnn = LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)
         self.bidirectional = bidirectional
