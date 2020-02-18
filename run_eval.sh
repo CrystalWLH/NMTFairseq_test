@@ -20,4 +20,6 @@
 
 #CUDA_VISIBLE_DEVICES=2 python generate.py mydata/data-bin/nmt_seg_bin --source-lang ti --target-lang zh --seg-lang seg --task seg_translation --log-format simple --log-interval 10 --path checkpoints/exp4/checkpoint_best.pt --batch-size 1 --beam 5 --remove-bpe --results-path temp --lenpen 0.6 --max-len-a 1 --max-len-b 50
 
-CUDA_VISIBLE_DEVICES=2 python generate.py mydata/data-bin/nmt_seg_ZhEn_bin --source-lang zh --target-lang en --seg-lang seg --task seg_translation --log-format simple --log-interval 10 --path checkpoints/exp4_zhen/checkpoint_last.pt --batch-size 1 --beam 5 --remove-bpe --results-path temp --lenpen 0.6 --max-len-a 1 --max-len-b 50
+#CUDA_VISIBLE_DEVICES=2 python generate.py mydata/data-bin/nmt_seg_ZhEn_bin --source-lang zh --target-lang en --seg-lang seg --task seg_translation --log-format simple --log-interval 10 --path checkpoints/exp4_zhen/checkpoint_last.pt --batch-size 1 --beam 5 --remove-bpe --results-path temp --lenpen 0.6 --max-len-a 1 --max-len-b 50
+
+CUDA_VISIBLE_DEVICES=2 python generate.py mydata/data-bin/nmt_seg_bin --source-lang ti --target-lang zh --seg-lang seg --task seg_translation --log-format simple --log-interval 10 --path checkpoints/exp5_1/checkpoint_last.pt --batch-size 1 --beam 5 --remove-bpe --results-path temp --lenpen 0.6 --max-len-a 1 --max-len-b 50
